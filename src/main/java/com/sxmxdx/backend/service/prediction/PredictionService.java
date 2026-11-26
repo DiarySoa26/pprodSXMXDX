@@ -1,111 +1,103 @@
 package com.sxmxdx.backend.service.prediction;
 
-import com.sxmxdx.backend.repository.prediction.PredictionRepository;
-import com.sxmxdx.backend.service.PipelineService;
+import com.sxmxdx.backend.dto.prediction.PredictionDTO;
+import com.sxmxdx.backend.dto.prediction.PredictionResumeDTO;
+import com.sxmxdx.backend.entity.budget.Budget;
+import com.sxmxdx.backend.entity.exercice.Exercice;
+import com.sxmxdx.backend.entity.prediction.PredictionAnalyse;
+import com.sxmxdx.backend.repository.budget.BudgetMensuelRepository;
+import com.sxmxdx.backend.repository.budget.BudgetRepository;
+import com.sxmxdx.backend.repository.exercice.ExerciceRepository;
+import com.sxmxdx.backend.repository.prediction.PredictionAnalyseRepository;
 import com.sxmxdx.backend.service.JournalAuditService;
-import org.springframework.stereotype.Service;
+import com.sxmxdx.backend.service.PipelineService;
 
-import java.util.LinkedHashMap;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class PredictionService {
 
+    private static final String MODULE = "PREDICTION";
+
     private final PipelineService pipelineService;
-    private final PredictionRepository predictionRepository;
+    private final BudgetRepository budgets;
+    private final BudgetMensuelRepository budgetsMensuels;
+    private final ExerciceRepository exercices;
+    private final PredictionAnalyseRepository analyses;
     private final JournalAuditService journalAuditService;
 
     public PredictionService(
             PipelineService pipelineService,
-            PredictionRepository predictionRepository,
+            BudgetRepository budgets,
+            BudgetMensuelRepository budgetsMensuels,
+            ExerciceRepository exercices,
+            PredictionAnalyseRepository analyses,
             JournalAuditService journalAuditService
     ) {
         this.pipelineService = pipelineService;
-        this.predictionRepository = predictionRepository;
+        this.budgets = budgets;
+        this.budgetsMensuels = budgetsMensuels;
+        this.exercices = exercices;
+        this.analyses = analyses;
         this.journalAuditService = journalAuditService;
     }
 
-    public Map<?, ?> genererPrediction(Integer auteurId) {
-        System.out.println("[PREDICTION] Appel du pipeline Flask...");
-
+    public Map<?, ?> genererPrediction() {
         try {
             Map<?, ?> resultat = pipelineService.genererPrediction();
+            boolean succes = PipelineService.estSucces(resultat);
 
-            System.out.println("[PREDICTION] Réponse : " + resultat);
-
-            boolean succes = resultat != null
-                    && Boolean.TRUE.equals(resultat.get("success"));
-
-            enregistrerAudit(
-                    auteurId,
+            auditer(
                     succes ? "GENERATION_PREDICTION" : "ECHEC_GENERATION_PREDICTION",
-                    succes ? "Génération des prédictions réussie."
-                           : "Échec de génération des prédictions.",
-                    succes ? "SUCCES" : "ECHEC"
+                    succes ? "Génération des prédictions réussie." : "Échec de génération des prédictions.",
+                    succes ? JournalAuditService.SUCCES : JournalAuditService.ECHEC
             );
 
             return resultat;
 
         } catch (RuntimeException e) {
-            enregistrerAudit(
-                    auteurId,
-                    "ECHEC_GENERATION_PREDICTION",
-                    "Erreur : " + e.getMessage(),
-                    "ECHEC"
-            );
+            auditer("ECHEC_GENERATION_PREDICTION", "Erreur : " + e.getMessage(), JournalAuditService.ECHEC);
             throw e;
         }
     }
 
-    private void enregistrerAudit(
-            Integer auteurId,
-            String action,
-            String description,
-            String statut
-    ) {
-        try {
-            journalAuditService.enregistrer(
-                    auteurId,
-                    action,
-                    "PREDICTION",
-                    description,
-                    "PREDICTION",
-                    null,
-                    statut
-            );
-        } catch (Exception e) {
-            System.err.println("[AUDIT] " + e.getMessage());
-        }
+    @Transactional(readOnly = true)
+    public Optional<PredictionDTO> dernierePrediction() {
+        return budgets.findFirstByTypeBudgetOrderByIdDesc(Budget.PREVISIONNEL)
+                .flatMap(this::detailler);
     }
 
-    public Map<String, Object> lastPrediction() {
-        Map<String, Object> prediction =
-                predictionRepository.rechercherDernierePrediction();
-
-        if (prediction == null) return null;
-
-        Long budgetId = ((Number) prediction.get("id")).longValue();
-
-        Map<String, Object> resultat = new LinkedHashMap<>(prediction);
-        resultat.put("mois", predictionRepository.rechercherMois(budgetId));
-
-        return resultat;
+    @Transactional(readOnly = true)
+    public List<PredictionResumeDTO> listerPredictions() {
+        return budgets.findResumesPredictions();
     }
 
-    public List<Map<String, Object>> listerPredictions() {
-        return predictionRepository.rechercherPredictions();
+    @Transactional(readOnly = true)
+    public Optional<PredictionDTO> rechercherPrediction(Long id) {
+        return budgets.findByIdAndTypeBudget(id, Budget.PREVISIONNEL)
+                .flatMap(this::detailler);
     }
 
-    public Map<String, Object> rechercherPrediction(Long id) {
-        Map<String, Object> prediction =
-                predictionRepository.rechercherPrediction(id);
+    /** Une prédiction sans exercice rattaché n'est pas exposée. */
+    private Optional<PredictionDTO> detailler(Budget budget) {
+        return exercices.findById(budget.getExerciceId())
+                .map(Exercice::getAnnee)
+                .map(annee -> PredictionDTO.depuis(
+                        budget,
+                        annee,
+                        analyses.findById(budget.getId())
+                                .map(PredictionAnalyse::getResume)
+                                .orElse(null),
+                        budgetsMensuels.findDetailMensuel(budget.getId())
+                ));
+    }
 
-        if (prediction == null) return null;
-
-        Map<String, Object> resultat = new LinkedHashMap<>(prediction);
-        resultat.put("mois", predictionRepository.rechercherMois(id));
-
-        return resultat;
+    private void auditer(String action, String description, String statut) {
+        journalAuditService.enregistrer(action, MODULE, description, MODULE, null, statut);
     }
 }

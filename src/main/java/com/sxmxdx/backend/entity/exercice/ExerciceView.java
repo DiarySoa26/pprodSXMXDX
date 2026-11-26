@@ -9,6 +9,13 @@ import org.hibernate.annotations.Immutable;
 
 import java.time.LocalDateTime;
 
+/**
+ * Vue {@code view_exercice} : un exercice et ses fichiers importés.
+ * <p>
+ * Attention : {@code id_exercice} n'est pas unique dans la vue (une ligne par
+ * import). Ne lire cette vue que par projection — voir
+ * {@link com.sxmxdx.backend.repository.exercice.ExerciceViewRepository}.
+ */
 @Entity
 @Immutable
 @Table(name = "view_exercice")
@@ -30,7 +37,6 @@ public class ExerciceView {
     @Column(name = "exercice_id")
     private Integer exerciceId;
 
-    @Column(name = "statut")
     private String statut;
 
     @Column(name = "date_import")
@@ -39,70 +45,15 @@ public class ExerciceView {
     @Column(name = "message_erreur")
     private String messageErreur;
 
-    public ExerciceView() {
+    protected ExerciceView() {
     }
 
-    public Integer getIdExercice() {
-        return idExercice;
-    }
-
-    public void setIdExercice(Integer idExercice) {
-        this.idExercice = idExercice;
-    }
-
-    public Integer getAnneeExercice() {
-        return anneeExercice;
-    }
-
-    public void setAnneeExercice(Integer anneeExercice) {
-        this.anneeExercice = anneeExercice;
-    }
-
-    public Integer getIdImportFichier() {
-        return idImportFichier;
-    }
-
-    public void setIdImportFichier(Integer idImportFichier) {
-        this.idImportFichier = idImportFichier;
-    }
-
-    public String getNomFichier() {
-        return nomFichier;
-    }
-
-    public void setNomFichier(String nomFichier) {
-        this.nomFichier = nomFichier;
-    }
-
-    public Integer getExerciceId() {
-        return exerciceId;
-    }
-
-    public void setExerciceId(Integer exerciceId) {
-        this.exerciceId = exerciceId;
-    }
-
-    public String getStatut() {
-        return statut;
-    }
-
-    public void setStatut(String statut) {
-        this.statut = statut;
-    }
-
-    public LocalDateTime getDateImport() {
-        return dateImport;
-    }
-
-    public void setDateImport(LocalDateTime dateImport) {
-        this.dateImport = dateImport;
-    }
-
-    public String getMessageErreur() {
-        return messageErreur;
-    }
-
-    public void setMessageErreur(String messageErreur) {
-        this.messageErreur = messageErreur;
-    }
+    public Integer getIdExercice() { return idExercice; }
+    public Integer getAnneeExercice() { return anneeExercice; }
+    public Integer getIdImportFichier() { return idImportFichier; }
+    public String getNomFichier() { return nomFichier; }
+    public Integer getExerciceId() { return exerciceId; }
+    public String getStatut() { return statut; }
+    public LocalDateTime getDateImport() { return dateImport; }
+    public String getMessageErreur() { return messageErreur; }
 }

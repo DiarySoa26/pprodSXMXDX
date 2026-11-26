@@ -3,47 +3,38 @@ package com.sxmxdx.backend.controller.comparaison;
 import com.sxmxdx.backend.dto.comparaison.ComparaisonProspectiveDTO;
 import com.sxmxdx.backend.service.comparaison.ComparaisonProspectiveService;
 
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/comparaisons/prospective")
-@CrossOrigin(origins = "http://localhost:3000")
 public class ComparaisonProspectiveController {
 
     private final ComparaisonProspectiveService service;
 
-    public ComparaisonProspectiveController(
-        ComparaisonProspectiveService service
-    ) {
+    public ComparaisonProspectiveController(ComparaisonProspectiveService service) {
         this.service = service;
     }
 
-    // Budgets générés disponibles
     @GetMapping("/budgets")
     public List<Integer> budgetsDisponibles() {
         return service.getBudgetsDisponibles();
     }
 
-    // Prévisions disponibles
     @GetMapping("/previsions")
     public List<Integer> previsionsDisponibles() {
         return service.getPrevisionsDisponibles();
     }
 
-    // Comparaison prospective avec auteur
-    @GetMapping(produces = "application/json")
+    @GetMapping
     public ComparaisonProspectiveDTO comparer(
-        @RequestParam Integer anneeBudget,
-        @RequestParam Integer anneePrevision,
-        @RequestParam Integer auteurId
+            @RequestParam Integer anneeBudget,
+            @RequestParam Integer anneePrevision
     ) {
-        return service.comparer(
-            anneeBudget,
-            anneePrevision,
-            auteurId
-        );
+        return service.comparer(anneeBudget, anneePrevision);
     }
 }
-

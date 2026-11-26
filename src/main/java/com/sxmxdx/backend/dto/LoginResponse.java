@@ -1,69 +1,21 @@
 package com.sxmxdx.backend.dto;
 
-public class LoginResponse {
-
-    private boolean success;
-
-    private String message;
-
-    private Integer id;
-
-    private String name;
-
-    private String email;
-
-    private String role;
-
-
-    public LoginResponse() {
-    }
-
-
-    public LoginResponse(
+/**
+ * Réponse de connexion. En cas de succès, {@code token} est le jeton à
+ * transmettre dans l'en-tête {@code Authorization: Bearer <token>}.
+ */
+public record LoginResponse(
         boolean success,
         String message,
         Integer id,
         String name,
         String email,
-        String role
-    ) {
+        String role,
+        String token,
+        Long expiresIn
+) {
 
-        this.success = success;
-        this.message = message;
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.role = role;
-    }
-
-
-    public boolean isSuccess() {
-        return success;
-    }
-
-
-    public String getMessage() {
-        return message;
-    }
-
-
-    public Integer getId() {
-        return id;
-    }
-
-
-    public String getName() {
-        return name;
-    }
-
-
-    public String getEmail() {
-        return email;
-    }
-
-
-    public String getRole() {
-        return role;
+    public static LoginResponse echec(String message) {
+        return new LoginResponse(false, message, null, null, null, null, null, null);
     }
 }
-

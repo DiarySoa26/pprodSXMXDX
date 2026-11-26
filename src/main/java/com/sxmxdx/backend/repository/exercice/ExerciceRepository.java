@@ -1,48 +1,14 @@
 package com.sxmxdx.backend.repository.exercice;
 
-import com.sxmxdx.backend.entity.exercice.ExerciceView;
+import com.sxmxdx.backend.entity.exercice.Exercice;
+
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
-import java.util.List;
+import java.util.Optional;
 
-public interface ExerciceRepository extends JpaRepository<ExerciceView, Integer> {
+public interface ExerciceRepository extends JpaRepository<Exercice, Long> {
 
-    // Tous les exercices
-    @Query(
-        value = """
-            SELECT *
-            FROM view_exercice
-            ORDER BY annee_exercice DESC
-        """,
-        nativeQuery = true
-    )
-    List<ExerciceView> rechercherTous();
+    Optional<Exercice> findByAnnee(Integer annee);
 
-    // Recherche par année
-    @Query(
-        value = """
-            SELECT *
-            FROM view_exercice
-            WHERE annee_exercice = :annee
-            ORDER BY annee_exercice DESC
-        """,
-        nativeQuery = true
-    )
-    List<ExerciceView> rechercherParAnnee(
-        @Param("annee") Integer annee
-    );
-
-    // Liste des années disponibles
-    @Query(
-        value = """
-            SELECT DISTINCT annee_exercice
-            FROM view_exercice
-            WHERE annee_exercice IS NOT NULL
-            ORDER BY annee_exercice DESC
-        """,
-        nativeQuery = true
-    )
-    List<Integer> rechercherAnnees();
+    boolean existsByIdAndAnnee(Long id, Integer annee);
 }

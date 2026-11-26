@@ -1,205 +1,84 @@
-// package com.sxmxdx.backend.service;
-
-// import org.springframework.beans.factory.annotation.Value;
-// import org.springframework.http.MediaType;
-// import org.springframework.stereotype.Service;
-// import org.springframework.web.client.RestClient;
-
-// import java.util.Map;
-
-// @Service
-// public class PipelineService {
-
-//     private final RestClient restClient;
-
-//     public PipelineService(
-//             @Value("${pipeline.api.url}")
-//             String pipelineApiUrl
-//     ) {
-
-//         System.out.println(
-//                 "[PIPELINE] URL Flask : "
-//                         + pipelineApiUrl
-//         );
-
-//         this.restClient =
-//                 RestClient.builder()
-//                         .baseUrl(pipelineApiUrl)
-//                         .build();
-//     }
-
-//     public Map<?, ?> importerExercice(String fileName) {
-//         String filePath = "/app/data/" + fileName;
-//         System.out.println("[PIPELINE] Fichier envoyé à Flask : " + filePath);
-//         Map<String, String> request =
-//                 Map.of(
-//                         "filePath",
-//                         filePath
-//                 );
-
-//         return restClient
-//                 .post()
-//                 .uri("/import")
-//                 .contentType(
-//                         MediaType.APPLICATION_JSON
-//                 )
-//                 .body(request)
-//                 .retrieve()
-//                 .body(Map.class);
-//     }
-
-//     public Map<?, ?> genererBudget() {
-
-//         System.out.println("[PIPELINE] Demande de génération du budget...");
-
-//         Map<?, ?> resultat =
-//                 restClient
-//                         .post()
-//                         .uri("/api/budgets/generer")
-//                         .retrieve()
-//                         .body(Map.class);
-
-//         if (resultat == null) {
-//             throw new RuntimeException(
-//                     "Aucune réponse du pipeline Flask."
-//             );
-//         }
-
-//         System.out.println(
-//                 "[PIPELINE] Réponse génération budget : "
-//                         + resultat
-//         );
-
-//         return resultat;
-//     }
-
-
-//     public Map<?, ?> genererPrediction() {
-
-//         System.out.println(
-//                 "[PIPELINE] Demande de génération de la prédiction..."
-//         );
-
-//         Map<?, ?> resultat =
-//                 restClient
-//                         .post()
-//                         .uri("/api/predictions/generer")
-//                         .retrieve()
-//                         .body(Map.class);
-
-//         if (resultat == null) {
-//                 throw new RuntimeException(
-//                         "Aucune réponse du pipeline de prédiction."
-//                 );
-//         }
-
-//         System.out.println(
-//                 "[PIPELINE] Réponse prédiction reçue."
-//         );
-
-//         return resultat;
-//         }
-
-
-    
-// }
-
-
-
-
-
-
-
-
-
-
 package com.sxmxdx.backend.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 
+/**
+ * Client HTTP du pipeline de traitement (Flask / Spark).
+ */
 @Service
 public class PipelineService {
 
+    private static final Logger log = LoggerFactory.getLogger(PipelineService.class);
+
     private final RestClient restClient;
+    private final String dossierDonnees;
 
     public PipelineService(
-            @Value("${pipeline.api.url}") String pipelineApiUrl
+            @Value("${pipeline.api.url}") String pipelineApiUrl,
+            @Value("${pipeline.data.directory}") String dossierDonnees
     ) {
-        System.out.println("[PIPELINE] URL Flask : " + pipelineApiUrl);
+        log.info("URL du pipeline : {}", pipelineApiUrl);
 
-        this.restClient = RestClient.builder()
-                .baseUrl(pipelineApiUrl)
-                .build();
+        this.restClient = RestClient.builder().baseUrl(pipelineApiUrl).build();
+        this.dossierDonnees = dossierDonnees.endsWith("/")
+                ? dossierDonnees
+                : dossierDonnees + "/";
     }
 
-    public Map<?, ?> importerExercice(String fileName) {
-        String filePath = "/app/data/" + fileName;
-
-        System.out.println("[PIPELINE] Fichier envoyé à Flask : " + filePath);
+    public Map<?, ?> importerExercice(String nomFichier) {
+        String cheminFichier = dossierDonnees + nomFichier;
+        log.info("Import transmis au pipeline : {}", cheminFichier);
 
         return restClient.post()
                 .uri("/import")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("filePath", filePath))
+                .body(Map.of("filePath", cheminFichier))
                 .retrieve()
                 .body(Map.class);
     }
 
     public Map<?, ?> genererBudget() {
-        System.out.println("[PIPELINE] Demande de génération du budget...");
-
-        Map<?, ?> resultat = restClient.post()
-                .uri("/api/budgets/generer")
-                .retrieve()
-                .body(Map.class);
-
-        if (resultat == null) {
-            throw new RuntimeException(
-                    "Aucune réponse du pipeline Flask."
-            );
-        }
-
-        System.out.println(
-                "[PIPELINE] Réponse génération budget : " + resultat
+        log.info("Demande de génération du budget");
+        return exiger(
+                restClient.post().uri("/api/budgets/generer").retrieve().body(Map.class),
+                "Aucune réponse du pipeline lors de la génération du budget."
         );
-
-        return resultat;
     }
 
     public Map<?, ?> genererPrediction() {
-        System.out.println(
-                "[PIPELINE] Demande de génération de la prédiction..."
+        log.info("Demande de génération de la prédiction");
+        return exiger(
+                restClient.post().uri("/api/predictions/generer").retrieve().body(Map.class),
+                "Aucune réponse du pipeline lors de la génération de la prédiction."
         );
-
-        Map<?, ?> resultat = restClient.post()
-                .uri("/api/predictions/generer")
-                .retrieve()
-                .body(Map.class);
-
-        if (resultat == null) {
-            throw new RuntimeException(
-                    "Aucune réponse du pipeline de prédiction."
-            );
-        }
-
-        System.out.println("[PIPELINE] Réponse prédiction reçue.");
-
-        return resultat;
     }
 
     public ResponseEntity<byte[]> telechargerFichier(Integer importId) {
-        System.out.println(
-                "[PIPELINE] Téléchargement du fichier import : " + importId
-        );
+        log.info("Téléchargement du fichier de l'import {}", importId);
 
         return restClient.get()
                 .uri("/api/imports/{importId}/fichier", importId)
                 .retrieve()
                 .toEntity(byte[].class);
+    }
+
+    private static Map<?, ?> exiger(Map<?, ?> reponse, String messageSiVide) {
+        if (reponse == null) {
+            throw new IllegalStateException(messageSiVide);
+        }
+        return reponse;
+    }
+
+    /** Vrai si la réponse du pipeline signale un succès ({@code "success": true}). */
+    public static boolean estSucces(Map<?, ?> reponse) {
+        return reponse != null && Boolean.TRUE.equals(reponse.get("success"));
     }
 }

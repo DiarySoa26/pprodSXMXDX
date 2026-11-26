@@ -1,8 +1,9 @@
 package com.sxmxdx.backend.service.comparaison;
 
-import com.sxmxdx.backend.dto.comparaison.*;
-import com.sxmxdx.backend.entity.comparaison.BudgetComparaison;
-import com.sxmxdx.backend.repository.comparaison.ProspectiveRepository;
+import com.sxmxdx.backend.dto.comparaison.ComparaisonProspectiveDTO;
+import com.sxmxdx.backend.dto.comparaison.IndicateurComparaisonDTO;
+import com.sxmxdx.backend.entity.budget.Budget;
+import com.sxmxdx.backend.repository.budget.BudgetRepository;
 import com.sxmxdx.backend.service.JournalAuditService;
 
 import org.springframework.http.HttpStatus;
@@ -10,262 +11,94 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
+/**
+ * Compare un budget généré à une prévision d'une année ultérieure.
+ */
 @Service
 @Transactional(readOnly = true)
 public class ComparaisonProspectiveService {
 
-    private final ProspectiveRepository repository;
+    private static final String MODULE = "COMPARAISON";
+    private static final String ENTITE = "COMPARAISON_PROSPECTIVE";
+
+    private final BudgetRepository budgets;
+    private final ComparateurBudgets comparateur;
     private final JournalAuditService journalAuditService;
 
     public ComparaisonProspectiveService(
-        ProspectiveRepository repository,
-        JournalAuditService journalAuditService
+            BudgetRepository budgets,
+            ComparateurBudgets comparateur,
+            JournalAuditService journalAuditService
     ) {
-        this.repository = repository;
+        this.budgets = budgets;
+        this.comparateur = comparateur;
         this.journalAuditService = journalAuditService;
     }
 
-    // Années disponibles
     public List<Integer> getBudgetsDisponibles() {
-        return repository.anneesByType("GENERE");
+        return budgets.findAnneesAbouties(Budget.GENERE);
     }
 
     public List<Integer> getPrevisionsDisponibles() {
-        return repository.anneesByType("PREVISIONNEL");
+        return budgets.findAnneesAbouties(Budget.PREVISIONNEL);
     }
 
-    // Recherche du budget
-    private BudgetComparaison trouverBudget(int annee, String type) {
-
-        var budgets = repository.byAnneeAndType(annee, type);
-
-        if (budgets.isEmpty()) {
-            throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Aucun budget " + type + " pour " + annee
-            );
-        }
-
-        if (budgets.size() > 1) {
-            throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Plusieurs budgets " + type + " pour " + annee
-            );
-        }
-
-        return budgets.get(0);
-    }
-
-    // Calcul des indicateurs
-    private IndicateurComparaisonDTO calculer(
-        String code,
-        String libelle,
-        String unite,
-        BigDecimal reference,
-        BigDecimal prevision
-    ) {
-        BigDecimal v1 = reference == null
-            ? BigDecimal.ZERO : reference;
-
-        BigDecimal v2 = prevision == null
-            ? BigDecimal.ZERO : prevision;
-
-        BigDecimal ecart = v2.subtract(v1);
-
-        BigDecimal evolution = "POINT".equals(unite)
-            ? ecart.multiply(BigDecimal.valueOf(100))
-                .setScale(2, RoundingMode.HALF_UP)
-            : v1.signum() == 0
-                ? null
-                : ecart.multiply(BigDecimal.valueOf(100))
-                    .divide(v1.abs(), 2, RoundingMode.HALF_UP);
-
-        String tendance = ecart.signum() > 0
-            ? "AUGMENTATION"
-            : ecart.signum() < 0
-                ? "DIMINUTION"
-                : "STABLE";
-
-        return new IndicateurComparaisonDTO(
-            code,
-            libelle,
-            unite,
-            v1,
-            v2,
-            ecart,
-            evolution,
-            tendance
-        );
-    }
-
-    // Journalisation des actions
-    private void enregistrerAudit(
-        Integer auteurId,
-        String action,
-        String description,
-        String entiteId,
-        String statut
-    ) {
+    public ComparaisonProspectiveDTO comparer(Integer anneeBudget, Integer anneePrevision) {
         try {
-            journalAuditService.enregistrer(
-                auteurId,
-                action,
-                "COMPARAISON",
-                description,
-                "COMPARAISON_PROSPECTIVE",
-                entiteId,
-                statut
-            );
-        } catch (Exception e) {
-            System.err.println(
-                "[AUDIT PROSPECTIVE] " + e.getMessage()
-            );
-        }
-    }
-
-    // Comparaison prospective avec traçabilité
-    public ComparaisonProspectiveDTO comparer(
-        Integer anneeBudget,
-        Integer anneePrevision,
-        Integer auteurId
-    ) {
-        try {
-
-            if (anneeBudget == null
-                    || anneePrevision == null
-                    || anneePrevision <= anneeBudget) {
-
+            if (anneeBudget == null || anneePrevision == null || anneePrevision <= anneeBudget) {
                 throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Les années de comparaison sont invalides"
-                );
+                        HttpStatus.BAD_REQUEST, "Les années de comparaison sont invalides");
             }
 
-            var budget = trouverBudget(
-                anneeBudget,
-                "GENERE"
-            );
+            Budget budget = budgetUnique(anneeBudget, Budget.GENERE);
+            Budget prevision = budgetUnique(anneePrevision, Budget.PREVISIONNEL);
 
-            var prevision = trouverBudget(
-                anneePrevision,
-                "PREVISIONNEL"
-            );
+            List<IndicateurComparaisonDTO> indicateurs = comparateur.comparer(budget, prevision);
 
-            var indicateurs = List.of(
-                calculer(
-                    "CA_EXPORT",
-                    "Chiffre d'affaires export",
-                    "MGA",
-                    budget.getCaExport(),
-                    prevision.getCaExport()
-                ),
-                calculer(
-                    "CHARGES",
-                    "Charges d'exploitation",
-                    "MGA",
-                    budget.getChargesExploitation(),
-                    prevision.getChargesExploitation()
-                ),
-                calculer(
-                    "FRAIS_EXPORT",
-                    "Frais d'exportation",
-                    "MGA",
-                    budget.getFraisExport(),
-                    prevision.getFraisExport()
-                ),
-                calculer(
-                    "MASSE_SALARIALE",
-                    "Masse salariale",
-                    "MGA",
-                    budget.getMasseSalariale(),
-                    prevision.getMasseSalariale()
-                ),
-                calculer(
-                    "RESULTAT",
-                    "Résultat opérationnel",
-                    "MGA",
-                    budget.getResultatOperationnel(),
-                    prevision.getResultatOperationnel()
-                ),
-                calculer(
-                    "MARGE",
-                    "Marge opérationnelle",
-                    "POINT",
-                    budget.getMargeOperationnelle(),
-                    prevision.getMargeOperationnelle()
-                )
-            );
-
-            // Interprétations automatiques
-            var interpretations = indicateurs.stream().map(i -> {
-
-                if (i.evolutionPourcentage() == null) {
-                    return i.libelle()
-                        + " : évolution non calculable.";
-                }
-
-                String mouvement = switch (i.tendance()) {
-                    case "AUGMENTATION" -> "augmente";
-                    case "DIMINUTION" -> "diminue";
-                    default -> "reste stable";
-                };
-
-                String unite = "POINT".equals(i.unite())
-                    ? " point(s)"
-                    : " %";
-
-                return i.libelle() + " " + mouvement
-                    + " de "
-                    + i.evolutionPourcentage().abs().toPlainString()
-                    + unite
-                    + " entre " + anneeBudget
-                    + " et " + anneePrevision + ".";
-            }).toList();
-
-            ComparaisonProspectiveDTO resultat =
-                new ComparaisonProspectiveDTO(
+            ComparaisonProspectiveDTO resultat = new ComparaisonProspectiveDTO(
                     anneeBudget,
                     anneePrevision,
                     budget.getId(),
                     prevision.getId(),
                     indicateurs,
-                    interpretations
-                );
+                    comparateur.interpreter(indicateurs, anneeBudget, anneePrevision)
+            );
 
-            // Enregistrer le succès
-            enregistrerAudit(
-                auteurId,
-                "COMPARAISON_PROSPECTIVE",
-                "Comparaison prospective entre le budget généré "
-                    + anneeBudget
-                    + " et la prévision " + anneePrevision,
-                budget.getId() + "-" + prevision.getId(),
-                "SUCCES"
+            journalAuditService.enregistrer(
+                    "COMPARAISON_PROSPECTIVE", MODULE,
+                    "Comparaison prospective entre le budget généré " + anneeBudget
+                            + " et la prévision " + anneePrevision,
+                    ENTITE, budget.getId() + "-" + prevision.getId(), JournalAuditService.SUCCES
             );
 
             return resultat;
 
         } catch (RuntimeException e) {
-
-            // Enregistrer l'échec
-            enregistrerAudit(
-                auteurId,
-                "ECHEC_COMPARAISON_PROSPECTIVE",
-                "Échec de comparaison entre "
-                    + anneeBudget
-                    + " et " + anneePrevision
-                    + " : " + e.getMessage(),
-                null,
-                "ECHEC"
+            journalAuditService.enregistrer(
+                    "ECHEC_COMPARAISON_PROSPECTIVE", MODULE,
+                    "Échec de comparaison entre " + anneeBudget + " et " + anneePrevision
+                            + " : " + e.getMessage(),
+                    ENTITE, null, JournalAuditService.ECHEC
             );
-
             throw e;
         }
     }
+
+    private Budget budgetUnique(Integer annee, String type) {
+        List<Budget> candidats = budgets.findAboutisParAnneeEtType(annee, type);
+
+        if (candidats.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Aucun budget " + type + " pour " + annee);
+        }
+
+        if (candidats.size() > 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "Plusieurs budgets " + type + " pour " + annee);
+        }
+
+        return candidats.get(0);
+    }
 }
-
-

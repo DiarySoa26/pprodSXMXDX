@@ -1,82 +1,30 @@
 package com.sxmxdx.backend.service.exercice;
 
 import com.sxmxdx.backend.dto.exercice.ExerciceDTO;
-import com.sxmxdx.backend.entity.exercice.ExerciceView;
-import com.sxmxdx.backend.repository.exercice.ExerciceRepository;
+import com.sxmxdx.backend.repository.exercice.ExerciceViewRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class ExerciceService {
 
-    private final ExerciceRepository repository;
+    private final ExerciceViewRepository repository;
 
-    public ExerciceService(
-        ExerciceRepository repository
-    ) {
+    public ExerciceService(ExerciceViewRepository repository) {
         this.repository = repository;
     }
 
     public List<ExerciceDTO> rechercher(Integer annee) {
-
-        List<ExerciceView> exercices;
-
-        if (annee == null) {
-            exercices = repository.rechercherTous();
-        } else {
-            exercices = repository.rechercherParAnnee(annee);
-        }
-
-        return exercices.stream()
-            .map(this::convertir)
-            .toList();
+        return annee == null
+                ? repository.findTous()
+                : repository.findParAnnee(annee);
     }
 
     public List<Integer> rechercherAnnees() {
-
-        return repository.rechercherAnnees();
-    }
-
-    private ExerciceDTO convertir(
-        ExerciceView exercice
-    ) {
-
-        ExerciceDTO dto = new ExerciceDTO();
-
-        dto.setIdExercice(
-            exercice.getIdExercice()
-        );
-
-        dto.setAnneeExercice(
-            exercice.getAnneeExercice()
-        );
-
-        dto.setIdImportFichier(
-            exercice.getIdImportFichier()
-        );
-
-        dto.setNomFichier(
-            exercice.getNomFichier()
-        );
-
-        dto.setExerciceId(
-            exercice.getExerciceId()
-        );
-
-        dto.setStatut(
-            exercice.getStatut()
-        );
-
-        dto.setDateImport(
-            exercice.getDateImport()
-        );
-
-        dto.setMessageErreur(
-            exercice.getMessageErreur()
-        );
-
-        return dto;
+        return repository.findAnnees();
     }
 }

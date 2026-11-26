@@ -1,38 +1,45 @@
 package com.sxmxdx.backend.service;
 
+import com.sxmxdx.backend.dto.UtilisateurDTO;
 import com.sxmxdx.backend.dto.UtilisateurRequest;
-import com.sxmxdx.backend.dto.UtilisateurModificationRequest;
 import com.sxmxdx.backend.entity.Role;
 import com.sxmxdx.backend.entity.Utilisateur;
 import com.sxmxdx.backend.repository.RoleRepository;
 import com.sxmxdx.backend.repository.UtilisateurRepository;
+import com.sxmxdx.backend.security.UtilisateurCourant;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 public class UtilisateurService {
 
+    private static final String MODULE = "UTILISATEURS";
+    private static final String ENTITE = "UTILISATEUR";
+    private static final String ROLE_ADMIN = "ADMIN";
+
+    private static final Set<String> ROLES = Set.of(ROLE_ADMIN, "DAF", "COMPTABLE", "LECTEUR");
+    private static final Pattern FORMAT_EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final int LONGUEUR_MIN_MOT_DE_PASSE = 8;
+
     private final UtilisateurRepository utilisateurs;
     private final RoleRepository roles;
-    private final BCryptPasswordEncoder encoder;
+    private final PasswordEncoder encoder;
     private final JournalAuditService journalAuditService;
-
-    private static final Set<String> ROLES =
-            Set.of("ADMIN", "DAF", "COMPTABLE", "LECTEUR");
 
     public UtilisateurService(
             UtilisateurRepository utilisateurs,
             RoleRepository roles,
-            BCryptPasswordEncoder encoder,
+            PasswordEncoder encoder,
             JournalAuditService journalAuditService
     ) {
         this.utilisateurs = utilisateurs;
@@ -42,235 +49,184 @@ public class UtilisateurService {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> lister() {
+    public List<UtilisateurDTO> lister() {
         return utilisateurs.findAll().stream()
-                .map(this::toDto)
+                .map(UtilisateurDTO::depuis)
                 .toList();
     }
 
     @Transactional
-    public Map<String, Object> creer(
-            UtilisateurRequest req,
-            Integer auteurId
-    ) {
-        if (req == null) {
-            throw erreur(HttpStatus.BAD_REQUEST, "Requête invalide.");
-        }
+    public UtilisateurDTO creer(UtilisateurRequest requete) {
+        exigerRequete(requete);
 
-        String nom = verifierNom(req.getNom());
-        String email = verifierEmail(req.getEmail());
-        Role role = trouverRole(req.getRole());
-        String motDePasse = req.getMotDePasse();
-
-        if (motDePasse == null) {
-            throw erreur(
-                    HttpStatus.BAD_REQUEST,
-                    "Veuillez renseigner le mot de passe"
-            );
-        }
-
+        String email = verifierEmail(requete.email());
         verifierEmailDisponible(email, null);
 
-        Utilisateur u = new Utilisateur();
-        u.setNom(nom);
-        u.setPrenom(req.getPrenom() == null ? "" : req.getPrenom().trim());
-        u.setEmail(email);
-        u.setMotDePasse(encoder.encode(motDePasse));
-        u.setRole(role);
-        u.setActif(true);
-        u.setDateCreation(LocalDateTime.now());
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setNom(verifierNom(requete.nom()));
+        utilisateur.setPrenom(nettoyer(requete.prenom()));
+        utilisateur.setEmail(email);
+        utilisateur.setMotDePasse(encoder.encode(verifierMotDePasse(requete.motDePasse())));
+        utilisateur.setRole(trouverRole(requete.role()));
+        utilisateur.setActif(true);
+        utilisateur.setDateCreation(LocalDateTime.now());
 
-        Utilisateur enregistre = utilisateurs.save(u);
+        Utilisateur enregistre = utilisateurs.save(utilisateur);
 
-        journalAuditService.enregistrer(
-                auteurId,
+        auditer(
                 "CREATION_UTILISATEUR",
-                "UTILISATEURS",
                 "Création de l'utilisateur : " + enregistre.getEmail(),
-                "UTILISATEUR",
-                String.valueOf(enregistre.getId()),
-                "SUCCES"
+                enregistre
         );
 
-        return toDto(enregistre);
+        return UtilisateurDTO.depuis(enregistre);
     }
 
     @Transactional
-    public Map<String, Object> modifier(
-            Integer id,
-            UtilisateurModificationRequest req,
-            Integer auteurId
-    ) {
-        Utilisateur u = trouverUtilisateur(id);
+    public UtilisateurDTO modifier(Integer id, UtilisateurRequest requete) {
+        exigerRequete(requete);
 
-        if (req == null) {
-            throw erreur(HttpStatus.BAD_REQUEST, "Requête invalide.");
-        }
-
-        String nom = verifierNom(req.getNom());
-        String email = verifierEmail(req.getEmail());
-        Role role = trouverRole(req.getRole());
+        Utilisateur utilisateur = trouverUtilisateur(id);
+        String email = verifierEmail(requete.email());
+        Role role = trouverRole(requete.role());
 
         verifierEmailDisponible(email, id);
 
-        String ancienEmail = u.getEmail();
-
-        u.setNom(nom);
-        u.setPrenom(req.getPrenom() == null ? "" : req.getPrenom().trim());
-        u.setEmail(email);
-        u.setRole(role);
-
-        String nouveauMotDePasse = req.getMotDePasse();
-
-        if (nouveauMotDePasse != null && !nouveauMotDePasse.isEmpty()) {
-        //     if (nouveauMotDePasse.length() < 12) {
-        //         throw erreur(
-        //                 HttpStatus.BAD_REQUEST,
-        //                 "Le nouveau mot de passe doit contenir au moins 12 caractères."
-        //         );
-        //     }
-
-            u.setMotDePasse(encoder.encode(nouveauMotDePasse));
+        if (estUtilisateurCourant(id) && !ROLE_ADMIN.equalsIgnoreCase(role.getNom())) {
+            throw erreur(
+                    HttpStatus.CONFLICT,
+                    "Vous ne pouvez pas retirer votre propre rôle administrateur."
+            );
         }
 
-        Utilisateur enregistre = utilisateurs.save(u);
+        String ancienEmail = utilisateur.getEmail();
 
-        journalAuditService.enregistrer(
-                auteurId,
+        utilisateur.setNom(verifierNom(requete.nom()));
+        utilisateur.setPrenom(nettoyer(requete.prenom()));
+        utilisateur.setEmail(email);
+        utilisateur.setRole(role);
+
+        if (requete.motDePasse() != null && !requete.motDePasse().isEmpty()) {
+            utilisateur.setMotDePasse(encoder.encode(verifierMotDePasse(requete.motDePasse())));
+        }
+
+        Utilisateur enregistre = utilisateurs.save(utilisateur);
+
+        auditer(
                 "MODIFICATION_UTILISATEUR",
-                "UTILISATEURS",
-                "Modification de l'utilisateur : " + ancienEmail
-                        + " → " + enregistre.getEmail(),
-                "UTILISATEUR",
-                String.valueOf(enregistre.getId()),
-                "SUCCES"
+                "Modification de l'utilisateur : " + ancienEmail + " → " + enregistre.getEmail(),
+                enregistre
         );
 
-        return toDto(enregistre);
+        return UtilisateurDTO.depuis(enregistre);
     }
 
     @Transactional
-    public Map<String, Object> changerStatut(
-            Integer id,
-            boolean actif,
-            Integer auteurId
-    ) {
-        Utilisateur u = trouverUtilisateur(id);
+    public UtilisateurDTO changerStatut(Integer id, boolean actif) {
+        Utilisateur utilisateur = trouverUtilisateur(id);
 
-        boolean ancienStatut = Boolean.TRUE.equals(u.getActif());
-
-        if (ancienStatut == actif) {
-            return toDto(u);
+        if (Boolean.TRUE.equals(utilisateur.getActif()) == actif) {
+            return UtilisateurDTO.depuis(utilisateur);
         }
 
-        u.setActif(actif);
+        if (!actif && estUtilisateurCourant(id)) {
+            throw erreur(HttpStatus.CONFLICT, "Vous ne pouvez pas désactiver votre propre compte.");
+        }
 
-        Utilisateur enregistre = utilisateurs.save(u);
+        utilisateur.setActif(actif);
+        Utilisateur enregistre = utilisateurs.save(utilisateur);
 
-        journalAuditService.enregistrer(
-                auteurId,
-                actif
-                        ? "ACTIVATION_UTILISATEUR"
-                        : "DESACTIVATION_UTILISATEUR",
-                "UTILISATEURS",
-                (actif
-                        ? "Activation du compte : "
-                        : "Désactivation du compte : ")
+        auditer(
+                actif ? "ACTIVATION_UTILISATEUR" : "DESACTIVATION_UTILISATEUR",
+                (actif ? "Activation du compte : " : "Désactivation du compte : ")
                         + enregistre.getEmail(),
-                "UTILISATEUR",
-                String.valueOf(enregistre.getId()),
-                "SUCCES"
+                enregistre
         );
 
-        return toDto(enregistre);
+        return UtilisateurDTO.depuis(enregistre);
+    }
+
+    private void auditer(String action, String description, Utilisateur cible) {
+        journalAuditService.enregistrer(
+                action, MODULE, description, ENTITE,
+                String.valueOf(cible.getId()), JournalAuditService.SUCCES
+        );
+    }
+
+    private static boolean estUtilisateurCourant(Integer id) {
+        return UtilisateurCourant.id().map(id::equals).orElse(false);
     }
 
     private Utilisateur trouverUtilisateur(Integer id) {
         return utilisateurs.findById(id)
-                .orElseThrow(() -> erreur(
-                        HttpStatus.NOT_FOUND,
-                        "Utilisateur introuvable."
-                ));
+                .orElseThrow(() -> erreur(HttpStatus.NOT_FOUND, "Utilisateur introuvable."));
     }
 
     private Role trouverRole(String nomRole) {
-        if (nomRole == null ||
-                !ROLES.contains(nomRole.trim().toUpperCase())) {
+        if (nomRole == null || !ROLES.contains(nomRole.trim().toUpperCase(Locale.ROOT))) {
             throw erreur(HttpStatus.BAD_REQUEST, "Rôle invalide.");
         }
 
         return roles.findByNomIgnoreCase(nomRole.trim())
-                .orElseThrow(() -> erreur(
-                        HttpStatus.BAD_REQUEST,
-                        "Rôle inexistant dans PostgreSQL."
-                ));
+                .orElseThrow(() -> erreur(HttpStatus.BAD_REQUEST, "Rôle inexistant."));
     }
 
-    private String verifierNom(String nom) {
-        if (nom == null || nom.isBlank()) {
-            throw erreur(
-                    HttpStatus.BAD_REQUEST,
-                    "Le nom est obligatoire."
-            );
+    private static void exigerRequete(UtilisateurRequest requete) {
+        if (requete == null) {
+            throw erreur(HttpStatus.BAD_REQUEST, "Requête invalide.");
         }
+    }
 
+    private static String verifierNom(String nom) {
+        if (nom == null || nom.isBlank()) {
+            throw erreur(HttpStatus.BAD_REQUEST, "Le nom est obligatoire.");
+        }
         return nom.trim();
     }
 
-    private String verifierEmail(String email) {
+    private static String verifierEmail(String email) {
         if (email == null || email.isBlank()) {
-            throw erreur(
-                    HttpStatus.BAD_REQUEST,
-                    "L'email est obligatoire."
-            );
+            throw erreur(HttpStatus.BAD_REQUEST, "L'email est obligatoire.");
         }
 
-        String valeur = email.trim().toLowerCase();
+        String valeur = email.trim().toLowerCase(Locale.ROOT);
 
-        if (!valeur.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
-            throw erreur(
-                    HttpStatus.BAD_REQUEST,
-                    "Adresse email invalide."
-            );
+        if (!FORMAT_EMAIL.matcher(valeur).matches()) {
+            throw erreur(HttpStatus.BAD_REQUEST, "Adresse email invalide.");
         }
 
         return valeur;
     }
 
-    private void verifierEmailDisponible(
-            String email,
-            Integer idActuel
-    ) {
-        utilisateurs.findByEmailIgnoreCase(email).ifPresent(u -> {
-            if (idActuel == null || !u.getId().equals(idActuel)) {
-                throw erreur(
-                        HttpStatus.CONFLICT,
-                        "Cet email est déjà utilisé."
-                );
+    private static String verifierMotDePasse(String motDePasse) {
+        if (motDePasse == null || motDePasse.isBlank()) {
+            throw erreur(HttpStatus.BAD_REQUEST, "Veuillez renseigner le mot de passe.");
+        }
+
+        if (motDePasse.length() < LONGUEUR_MIN_MOT_DE_PASSE) {
+            throw erreur(
+                    HttpStatus.BAD_REQUEST,
+                    "Le mot de passe doit contenir au moins "
+                            + LONGUEUR_MIN_MOT_DE_PASSE + " caractères."
+            );
+        }
+
+        return motDePasse;
+    }
+
+    private void verifierEmailDisponible(String email, Integer idActuel) {
+        utilisateurs.findByEmailIgnoreCase(email).ifPresent(existant -> {
+            if (!existant.getId().equals(idActuel)) {
+                throw erreur(HttpStatus.CONFLICT, "Cet email est déjà utilisé.");
             }
         });
     }
 
-    private ResponseStatusException erreur(
-            HttpStatus status,
-            String message
-    ) {
-        return new ResponseStatusException(status, message);
+    private static String nettoyer(String valeur) {
+        return valeur == null ? "" : valeur.trim();
     }
 
-    private Map<String, Object> toDto(Utilisateur u) {
-        return Map.of(
-                "id", u.getId(),
-                "nom", u.getNom(),
-                "prenom", u.getPrenom() == null ? "" : u.getPrenom(),
-                "email", u.getEmail(),
-                "role", u.getRole().getNom(),
-                "actif", Boolean.TRUE.equals(u.getActif())
-        );
+    private static ResponseStatusException erreur(HttpStatus statut, String message) {
+        return new ResponseStatusException(statut, message);
     }
 }
-
-
-
-
-
