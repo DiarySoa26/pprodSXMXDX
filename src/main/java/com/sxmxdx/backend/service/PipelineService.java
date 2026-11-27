@@ -69,7 +69,9 @@ public class PipelineService {
         form.add("file", new FileSystemResource(fichier));
         form.add("fileName", fileName);
 
-        return appeler("import", () -> restClient.post()
+        // Une seule tentative : renvoyer le fichier relancerait le traitement
+        // Spark (doublons / surcharge) si Flask plante en cours de route.
+        return appeler("import", 1, () -> restClient.post()
                 .uri("/import")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(form)
@@ -136,6 +138,10 @@ public class PipelineService {
      * et remplace la page HTML d'erreur par un message lisible.
      */
     private <T> T appeler(String operation, Supplier<T> appel) {
+        return appeler(operation, this.maxTentatives, appel);
+    }
+
+    private <T> T appeler(String operation, int maxTentatives, Supplier<T> appel) {
         RuntimeException derniereErreur = null;
 
         for (int tentative = 1; tentative <= maxTentatives; tentative++) {
