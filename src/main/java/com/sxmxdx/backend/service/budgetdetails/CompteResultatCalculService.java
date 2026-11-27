@@ -1,3 +1,4 @@
+
 package com.sxmxdx.backend.service.budgetdetails;
 
 import org.springframework.stereotype.Service;
@@ -10,45 +11,70 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Calcule le compte de résultat mensuel (soldes I à X et marge nette)
- * à partir des montants mensuels de chaque rubrique.
- */
 @Service
 public class CompteResultatCalculService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
-    private static final int NB_MOIS = 12;
 
-    /**
-     * Valeurs mensuelles d'une rubrique ; 0 pour une rubrique ou un mois absent.
-     */
-    private BigDecimal[] lire(Map<String, BigDecimal[]> donnees, String code) {
-        BigDecimal[] resultat = new BigDecimal[NB_MOIS];
-        Arrays.fill(resultat, ZERO);
+    private static final List<String> CODES = List.of(
+            "CA",
+            "STOCK",
+            "IMMOB",
+            "ACHATS",
+            "SERVICES",
+            "SUBVENTIONS",
+            "TAXES",
+            "PERSONNEL",
+            "AUTRES_PRODUITS",
+            "AUTRES_CHARGES",
+            "AMORTISSEMENTS",
+            "PROVISIONS",
+            "REPRISES",
+            "PRODUITS_FIN",
+            "CHARGES_FIN",
+            "IMPOT",
+            "IMPOTS_DIFFERES",
+            "EXTRA_PRODUITS",
+            "EXTRA_CHARGES"
+    );
 
-        BigDecimal[] valeurs = donnees == null ? null : donnees.get(code);
+    
+private BigDecimal[] lire(
+        Map<String, BigDecimal[]> donnees,
+        String code
+) {
+    BigDecimal[] resultat = new BigDecimal[12];
 
-        if (valeurs == null) {
-            return resultat;
-        }
+    Arrays.fill(resultat, BigDecimal.ZERO);
 
-        for (int i = 0; i < Math.min(valeurs.length, NB_MOIS); i++) {
-            if (valeurs[i] != null) {
-                resultat[i] = valeurs[i];
-            }
-        }
-
+    if (donnees == null) {
         return resultat;
     }
+
+    BigDecimal[] valeurs = donnees.get(code);
+
+    // Rubrique absente : 0 pour les 12 mois
+    if (valeurs == null) {
+        return resultat;
+    }
+    
+    for (int i = 0; i < Math.min(valeurs.length, 12); i++) {
+        if (valeurs[i] != null) {
+            resultat[i] = valeurs[i];
+        }
+    }
+
+    return resultat;
+}
+
 
     private BigDecimal[] additionner(
             BigDecimal[] a,
             BigDecimal[] b
     ) {
-        BigDecimal[] resultat = new BigDecimal[NB_MOIS];
+        BigDecimal[] resultat = new BigDecimal[12];
 
-        for (int i = 0; i < NB_MOIS; i++) {
+        for (int i = 0; i < 12; i++) {
             resultat[i] = a[i].add(b[i]);
         }
 
@@ -59,9 +85,9 @@ public class CompteResultatCalculService {
             BigDecimal[] a,
             BigDecimal[] b
     ) {
-        BigDecimal[] resultat = new BigDecimal[NB_MOIS];
+        BigDecimal[] resultat = new BigDecimal[12];
 
-        for (int i = 0; i < NB_MOIS; i++) {
+        for (int i = 0; i < 12; i++) {
             resultat[i] = a[i].subtract(b[i]);
         }
 
@@ -100,6 +126,10 @@ public class CompteResultatCalculService {
     public List<Map<String, Object>> calculerCompteResultat(
             Map<String, BigDecimal[]> donnees
     ) {
+        for (String code : CODES) {
+            lire(donnees, code);
+        }
+
         List<Map<String, Object>> lignes = new ArrayList<>();
 
         BigDecimal[] ca = lire(donnees, "CA");
@@ -294,9 +324,9 @@ public class CompteResultatCalculService {
                 net, "resultat-final"
         );
 
-        BigDecimal[] marges = new BigDecimal[NB_MOIS];
+        BigDecimal[] marges = new BigDecimal[12];
 
-        for (int i = 0; i < NB_MOIS; i++) {
+        for (int i = 0; i < 12; i++) {
             marges[i] = ca[i].signum() == 0
                     ? ZERO
                     : net[i]

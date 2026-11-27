@@ -1,77 +1,230 @@
+// package com.sxmxdx.backend.controller.budgetdetails;
+
+// import com.sxmxdx.backend.service.budgetdetails.BudgetDetailsService;
+// import org.springframework.http.ResponseEntity;
+// import org.springframework.web.bind.annotation.*;
+
+// @RestController
+// @RequestMapping("/api/budget-details")
+// @CrossOrigin(origins = "http://localhost:3000")
+// public class BudgetDetailsController {
+
+//     private final BudgetDetailsService service;
+
+//     public BudgetDetailsController(BudgetDetailsService service) {
+//         this.service = service;
+//     }
+
+//     @GetMapping("/charges/{exerciceId}")
+//     public ResponseEntity<?> getCharges(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getCharges(exerciceId, auteurId));
+//     }
+
+//     @GetMapping("/exportations/{exerciceId}")
+//     public ResponseEntity<?> getExportations(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getExportations(exerciceId, auteurId));
+//     }
+
+//     @GetMapping("/frais-export/{exerciceId}")
+//     public ResponseEntity<?> getFraisExport(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getFraisExport(exerciceId, auteurId));
+//     }
+
+//     @GetMapping("/production/{exerciceId}")
+//     public ResponseEntity<?> getProduction(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getProduction(exerciceId, auteurId));
+//     }
+
+//     @GetMapping("/employes/{exerciceId}")
+//     public ResponseEntity<?> getEmployes(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getEmployes(exerciceId, auteurId));
+//     }
+
+//     @GetMapping("/budget/{exerciceId}")
+//     public ResponseEntity<?> getBudget(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getBudget(exerciceId, auteurId));
+//     }
+
+//     @GetMapping("/budget-mensuel/{budgetId}")
+//     public ResponseEntity<?> getBudgetM(
+//             @PathVariable Integer budgetId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(service.getBudgetM(budgetId, auteurId));
+//     }
+// }
+
+
+
+
+
 package com.sxmxdx.backend.controller.budgetdetails;
 
 import com.sxmxdx.backend.service.budgetdetails.BudgetDetailsService;
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
-import java.util.Map;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/budget-details")
+@CrossOrigin(origins = "http://localhost:3000")
 public class BudgetDetailsController {
 
     private final BudgetDetailsService service;
 
-    public BudgetDetailsController(BudgetDetailsService service) {
+    public BudgetDetailsController(
+            BudgetDetailsService service
+    ) {
         this.service = service;
     }
 
+
     @GetMapping("/charges/{exerciceId}")
-    public List<Map<String, Object>> getCharges(@PathVariable Integer exerciceId) {
-        return service.getCharges(exerciceId);
+    public ResponseEntity<?> getCharges(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getCharges(exerciceId, auteurId)
+        );
     }
+
 
     @GetMapping("/exportations/{exerciceId}")
-    public List<Map<String, Object>> getExportations(@PathVariable Integer exerciceId) {
-        return service.getExportations(exerciceId);
+    public ResponseEntity<?> getExportations(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getExportations(exerciceId, auteurId)
+        );
     }
+
 
     @GetMapping("/frais-export/{exerciceId}")
-    public List<Map<String, Object>> getFraisExport(@PathVariable Integer exerciceId) {
-        return service.getFraisExport(exerciceId);
+    public ResponseEntity<?> getFraisExport(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getFraisExport(exerciceId, auteurId)
+        );
     }
+
 
     @GetMapping("/production/{exerciceId}")
-    public List<Map<String, Object>> getProduction(@PathVariable Integer exerciceId) {
-        return service.getProduction(exerciceId);
+    public ResponseEntity<?> getProduction(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getProduction(exerciceId, auteurId)
+        );
     }
 
+
     @GetMapping("/employes/{exerciceId}")
-    public List<Map<String, Object>> getEmployes(@PathVariable Integer exerciceId) {
-        return service.getEmployes(exerciceId);
+    public ResponseEntity<?> getEmployes(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getEmployes(exerciceId, auteurId)
+        );
     }
 
     @GetMapping("/budget/{exerciceId}")
-    public List<Map<String, Object>> getBudget(@PathVariable Integer exerciceId) {
-        return service.getBudget(exerciceId);
+    public ResponseEntity<?> getBudget(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getBudget(exerciceId, auteurId)
+        );
     }
 
     @GetMapping("/budget-mensuel/{budgetId}")
-    public List<Map<String, Object>> getBudgetMensuel(@PathVariable Integer budgetId) {
-        return service.getBudgetMensuel(budgetId);
+    public ResponseEntity<?> getBudgetM(
+            @PathVariable Integer budgetId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getBudgetM(budgetId, auteurId)
+        );
     }
 
+
     @GetMapping("/amortissements/{exerciceId}")
-    public List<Map<String, Object>> getAmortissements(@PathVariable Integer exerciceId) {
-        return service.getAmortissements(exerciceId);
+    public ResponseEntity<?> getAmortissements(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getAmortissements(exerciceId, auteurId)
+        );
     }
 
     @GetMapping("/amortissements-totaux/{exerciceId}")
-    public List<Map<String, Object>> getAmortissementsTotaux(@PathVariable Integer exerciceId) {
-        return service.getAmortissementsTotaux(exerciceId);
+    public ResponseEntity<?> getAmortissementsTotaux(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getAmortissementsTotaux(exerciceId, auteurId)
+        );
     }
 
     @GetMapping("/amortissements-annuel/{exerciceId}")
-    public List<Map<String, Object>> getAmortissementsAnnuel(@PathVariable Integer exerciceId) {
-        return service.getAmortissementsAnnuel(exerciceId);
+    public ResponseEntity<?> getAmortissementsAnnuel(
+            @PathVariable Integer exerciceId,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.ok(
+                service.getAmortissementsAnnuel(exerciceId, auteurId)
+        );
     }
 
-    @GetMapping("/compte-resultat/{exerciceId}")
-    public List<Map<String, Object>> getCompteResultat(@PathVariable Integer exerciceId) {
-        return service.getCompteResultat(exerciceId);
-    }
+
+//     @GetMapping("/compte-resultat/{exerciceId}")
+//     public ResponseEntity<?> getCompteResultat(
+//             @PathVariable Integer exerciceId,
+//             @RequestParam Integer auteurId
+//     ) {
+//         return ResponseEntity.ok(
+//             service.getCompteResultat(exerciceId, auteurId)
+//         );
+//     }
+
+
+@GetMapping("/compte-resultat/{exerciceId}")
+public ResponseEntity<?> getCompteResultat(
+        @PathVariable Integer exerciceId,
+        @RequestParam Integer auteurId
+) {
+    return ResponseEntity.ok(
+            service.getCompteResultat(
+                    exerciceId,
+                    auteurId
+            )
+    );
+}
+
+
 }

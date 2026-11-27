@@ -1,7 +1,5 @@
 package com.sxmxdx.backend.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -41,7 +39,6 @@ public class Utilisateur {
     private String email;
 
 
-    @JsonIgnore
     @Column(
         name = "mot_de_passe",
         nullable = false,

@@ -6,15 +6,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * Point de contrôle public indiquant que le backend répond.
- */
 @RestController
 @RequestMapping("/api")
 public class TestController {
 
     @GetMapping("/test")
     public Map<String, Object> test() {
-        return Map.of("success", true, "message", "Backend Spring Boot SXMXDX opérationnel");
+
+        return Map.of(
+            "success", true,
+            "message", "Backend Spring Boot SXMXDX opérationnel"
+        );
+
     }
 }

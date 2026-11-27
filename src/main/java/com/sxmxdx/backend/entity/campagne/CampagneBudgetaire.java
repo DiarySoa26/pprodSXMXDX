@@ -8,11 +8,6 @@ import java.time.LocalDateTime;
 @Table(name = "campagne_budgetaire")
 public class CampagneBudgetaire {
 
-    public static final String PLANIFIEE = "PLANIFIEE";
-    public static final String EN_COURS = "EN_COURS";
-    public static final String TERMINEE = "TERMINEE";
-    public static final String ANNULEE = "ANNULEE";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,7 +25,7 @@ public class CampagneBudgetaire {
     private LocalDate dateFin;
 
     @Column(nullable = false, length = 20)
-    private String statut = PLANIFIEE;
+    private String statut = "PLANIFIEE";
 
     @Column(name = "date_creation", insertable = false, updatable = false)
     private LocalDateTime dateCreation;
@@ -56,9 +51,4 @@ public class CampagneBudgetaire {
     public void setStatut(String statut) { this.statut = statut; }
 
     public LocalDateTime getDateCreation() { return dateCreation; }
-
-    /** Une campagne terminée ou annulée ne peut plus être modifiée. */
-    public boolean estFermee() {
-        return TERMINEE.equals(statut) || ANNULEE.equals(statut);
-    }
 }

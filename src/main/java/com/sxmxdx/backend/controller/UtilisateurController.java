@@ -1,18 +1,19 @@
 package com.sxmxdx.backend.controller;
 
-import com.sxmxdx.backend.dto.UtilisateurDTO;
 import com.sxmxdx.backend.dto.UtilisateurRequest;
+import com.sxmxdx.backend.dto.UtilisateurModificationRequest;
 import com.sxmxdx.backend.service.UtilisateurService;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/utilisateurs")
+@CrossOrigin(origins = "http://localhost:3000")
 public class UtilisateurController {
 
     private final UtilisateurService service;
@@ -22,35 +23,46 @@ public class UtilisateurController {
     }
 
     @GetMapping
-    public List<UtilisateurDTO> lister() {
+    public List<Map<String, Object>> lister() {
         return service.lister();
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public UtilisateurDTO creer(@RequestBody UtilisateurRequest request) {
-        return service.creer(request);
+    public ResponseEntity<Map<String, Object>> creer(
+            @RequestBody UtilisateurRequest request,
+            @RequestParam Integer auteurId
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(service.creer(request, auteurId));
     }
 
     @PutMapping("/{id}")
-    public UtilisateurDTO modifier(
+    public ResponseEntity<Map<String, Object>> modifier(
             @PathVariable Integer id,
-            @RequestBody UtilisateurRequest request
+            @RequestBody UtilisateurModificationRequest request,
+            @RequestParam Integer auteurId
     ) {
-        return service.modifier(id, request);
+        return ResponseEntity.ok(
+                service.modifier(id, request, auteurId)
+        );
     }
 
     @PatchMapping("/{id}/statut")
-    public UtilisateurDTO changerStatut(
+    public ResponseEntity<Map<String, Object>> changerStatut(
             @PathVariable Integer id,
-            @RequestBody Map<String, Boolean> request
+            @RequestBody Map<String, Boolean> request,
+            @RequestParam Integer auteurId
     ) {
-        Boolean actif = request == null ? null : request.get("actif");
-
-        if (actif == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le champ 'actif' est obligatoire.");
+        if (request == null || request.get("actif") == null) {
+            return ResponseEntity.badRequest().build();
         }
 
-        return service.changerStatut(id, actif);
+        return ResponseEntity.ok(
+                service.changerStatut(
+                        id,
+                        request.get("actif"),
+                        auteurId
+                )
+        );
     }
 }

@@ -8,14 +8,6 @@ import java.time.LocalDateTime;
 @Table(name = "jalon_budgetaire")
 public class JalonBudgetaire {
 
-    public static final String EN_ATTENTE = "EN_ATTENTE";
-    public static final String TERMINE = "TERMINE";
-
-    public static final String IMPORTATION = "IMPORTATION";
-    public static final String GENERATION = "GENERATION";
-    public static final String VERIFICATION = "VERIFICATION";
-    public static final String VALIDATION = "VALIDATION";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,7 +31,7 @@ public class JalonBudgetaire {
     private LocalDateTime dateRealisation;
 
     @Column(nullable = false, length = 20)
-    private String statut = EN_ATTENTE;
+    private String statut = "EN_ATTENTE";
 
     public JalonBudgetaire() {}
 
@@ -68,16 +60,4 @@ public class JalonBudgetaire {
 
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
-
-    public boolean estTermine() {
-        return TERMINE.equals(statut);
-    }
-
-    /** Marque le jalon comme terminé maintenant (sans effet s'il l'est déjà). */
-    public void terminer() {
-        if (!estTermine()) {
-            statut = TERMINE;
-            dateRealisation = LocalDateTime.now();
-        }
-    }
 }
