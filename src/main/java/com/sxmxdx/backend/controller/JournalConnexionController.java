@@ -8,7 +8,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/tracabilite")
-@CrossOrigin(origins = "http://localhost:3000")
 public class JournalConnexionController {
 
     private final JournalConnexionService service;

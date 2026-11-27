@@ -7,7 +7,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/comparaisons")
-@CrossOrigin(origins = "http://localhost:3000")
 public class ComparaisonHistoriqueController {
     private final ComparaisonHistoriqueService service;
     public ComparaisonHistoriqueController(ComparaisonHistoriqueService service) { this.service = service; }

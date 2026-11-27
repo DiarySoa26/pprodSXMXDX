@@ -6,7 +6,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/predictions/details")
-@CrossOrigin(origins = "http://localhost:3000")
 public class PredictionDetailsController {
 
     private final PredictionDetailsService service;

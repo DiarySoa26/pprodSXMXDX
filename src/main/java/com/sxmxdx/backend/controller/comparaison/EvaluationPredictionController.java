@@ -49,7 +49,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/comparaisons/evaluation")
-@CrossOrigin(origins = "http://localhost:3000")
 public class EvaluationPredictionController {
 
     private final EvaluationPredictionService service;

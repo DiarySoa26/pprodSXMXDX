@@ -196,16 +196,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/imports")
-@CrossOrigin(
-        origins = "http://localhost:3000",
-        allowedHeaders = "*",
-        exposedHeaders = {"Content-Disposition"},
-        methods = {
-                RequestMethod.GET,
-                RequestMethod.POST,
-                RequestMethod.OPTIONS
-        }
-)
 public class ImportController {
 
     private final ImportService importService;

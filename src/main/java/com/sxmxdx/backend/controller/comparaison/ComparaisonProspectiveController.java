@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/comparaisons/prospective")
-@CrossOrigin(origins = "http://localhost:3000")
 public class ComparaisonProspectiveController {
 
     private final ComparaisonProspectiveService service;

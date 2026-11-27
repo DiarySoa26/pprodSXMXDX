@@ -84,7 +84,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/budget-details")
-@CrossOrigin(origins = "http://localhost:3000")
 public class BudgetDetailsController {
 
     private final BudgetDetailsService service;
