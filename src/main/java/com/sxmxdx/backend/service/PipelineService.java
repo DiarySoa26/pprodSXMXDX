@@ -24,6 +24,7 @@ public class PipelineService {
     private final String baseUrl;
     private final int maxTentatives;
     private final long delaiEntreTentativesMs;
+    // 
 
     public PipelineService(
             @Value("${pipeline.api.url}") String pipelineApiUrl,
