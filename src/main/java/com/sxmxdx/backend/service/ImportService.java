@@ -249,7 +249,7 @@ public class ImportService {
 
             System.out.println("[IMPORT] Appel du pipeline Flask...");
 
-            Map<?, ?> resultat = pipelineService.importerExercice(safeFileName);
+            Map<?, ?> resultat = pipelineService.importerExercice(destination);
 
             System.out.println("[IMPORT] Réponse du pipeline : " + resultat);
 
@@ -281,17 +281,88 @@ public class ImportService {
 
         } catch (IOException | RuntimeException e) {
 
+            // Détail complet uniquement dans les logs serveur
+            System.err.println("[IMPORT] Erreur détaillée : " + e);
+            e.printStackTrace();
+
+            String erreurCourte = libelleErreur(e);
+
             enregistrerAudit(
                     auteurId,
                     "ECHEC_IMPORTATION",
                     "Échec de l'importation du fichier : "
                             + (safeFileName == null ? "Fichier inconnu" : safeFileName)
-                            + " - " + e.getMessage(),
+                            + " - " + erreurCourte,
                     "ECHEC"
             );
 
-            throw e;
+            // Le front reçoit le même libellé court
+            if (e instanceof IllegalArgumentException) {
+                throw new IllegalArgumentException(erreurCourte, e);
+            }
+            throw new IllegalStateException(erreurCourte, e);
         }
+    }
+
+    /**
+     * Transforme une exception en libellé court, lisible et
+     * de taille limitée, pour le journal d'audit et le front.
+     */
+    private static String libelleErreur(Throwable e) {
+        Throwable cause = e;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+
+        // Erreurs de validation : messages déjà courts et maîtrisés
+        if (e instanceof IllegalArgumentException && e.getMessage() != null) {
+            return tronquer(e.getMessage());
+        }
+
+        // Erreur HTTP renvoyée par Flask / l'hébergeur
+        if (e instanceof org.springframework.web.client.RestClientResponseException r) {
+            int status = r.getStatusCode().value();
+            return switch (status) {
+                case 400 -> "Fichier refusé par le pipeline (400)";
+                case 404 -> "Service d'importation introuvable (404)";
+                case 413 -> "Fichier trop volumineux (413)";
+                case 415 -> "Format d'envoi non accepté par le pipeline (415)";
+                case 500 -> "Erreur interne du pipeline (500)";
+                case 502, 503, 504 -> "Pipeline indisponible (" + status + ")";
+                default -> "Erreur du pipeline (HTTP " + status + ")";
+            };
+        }
+
+        String message = e.getMessage() == null ? "" : e.getMessage();
+
+        if (message.startsWith("Le pipeline Flask (") && message.contains("indisponible")) {
+            return "Pipeline indisponible après plusieurs tentatives";
+        }
+        if (message.startsWith("Impossible de joindre le pipeline")
+                || cause instanceof java.net.ConnectException
+                || cause instanceof java.net.UnknownHostException) {
+            return "Pipeline injoignable";
+        }
+        if (cause instanceof java.net.SocketTimeoutException) {
+            return "Délai d'attente du pipeline dépassé";
+        }
+        if (message.startsWith("Échec de l'importation : ")) {
+            // Message métier renvoyé par Flask (success=false)
+            return tronquer(message.substring("Échec de l'importation : ".length()));
+        }
+        if (e instanceof IOException) {
+            return "Erreur d'enregistrement du fichier";
+        }
+
+        return "Erreur inattendue pendant l'importation";
+    }
+
+    private static String tronquer(String texte) {
+        String t = texte.replaceAll("\\s+", " ").trim();
+        if (t.startsWith("<")) {
+            return "Réponse invalide du pipeline";
+        }
+        return t.length() > 150 ? t.substring(0, 150) + "..." : t;
     }
 
     private void enregistrerAudit(
