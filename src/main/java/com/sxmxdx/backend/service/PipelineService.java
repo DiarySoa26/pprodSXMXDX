@@ -27,8 +27,9 @@ public class PipelineService {
 
     public PipelineService(
             @Value("${pipeline.api.url}") String pipelineApiUrl,
-            @Value("${pipeline.api.connect-timeout:30s}") Duration connectTimeout,
-            @Value("${pipeline.api.read-timeout:10m}") Duration readTimeout,
+            // 0 = pas de timeout : on attend la réponse de Flask
+            @Value("${pipeline.api.connect-timeout:0}") Duration connectTimeout,
+            @Value("${pipeline.api.read-timeout:0}") Duration readTimeout,
             @Value("${pipeline.api.max-retries:3}") int maxTentatives,
             @Value("${pipeline.api.retry-delay:15s}") Duration delaiEntreTentatives
     ) {
