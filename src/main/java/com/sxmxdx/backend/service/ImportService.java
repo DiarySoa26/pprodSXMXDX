@@ -260,7 +260,7 @@ public class ImportService {
 
     // URL du pipeline : variable d'environnement PIPELINE_API_URL
     // (local : http://spark:5000 ; Render : https://xxxx.trycloudflare.com)
-    @Value("${PIPELINE_API_URL:https://convenience-resistant-donation-explained.trycloudflare.com}")
+    @Value("${PIPELINE_API_URL:https://oasis-uphold-dreamily.ngrok-free.dev}")
     private String pipelineApiUrl;
 
     public ImportService(JournalAuditService journalAuditService) {
